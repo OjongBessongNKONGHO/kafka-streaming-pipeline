@@ -1,0 +1,54 @@
+# ─────────────────────────────────────────────
+# Weather Streaming Pipeline Configuration
+# ─────────────────────────────────────────────
+
+api:
+  base_url: "http://api.openweathermap.org/data/2.5/weather"
+  units: "metric"
+  timeout_seconds: 10
+  retry_attempts: 3
+  retry_delay_seconds: 5
+  cities:
+    - name: "Paris"
+      country: "FR"
+    - name: "London"
+      country: "GB"
+    - name: "New York"
+      country: "US"
+    - name: "Tokyo"
+      country: "JP"
+    - name: "Douala"
+      country: "CM"
+    - name: "Berlin"
+      country: "DE"
+    - name: "Lagos"
+      country: "NG"
+    - name: "Sydney"
+      country: "AU"
+
+kafka:
+  topic: "weather_stream"
+  dead_letter_topic: "weather_stream_dlq"
+  consumer_group: "weather_consumer_group"
+  auto_offset_reset: "earliest"
+  enable_auto_commit: false
+  max_poll_records: 10
+  session_timeout_ms: 30000
+  heartbeat_interval_ms: 10000
+
+producer:
+  poll_interval_seconds: 30
+  acks: "all"
+  retries: 3
+  max_block_ms: 10000
+
+database:
+  pool_size: 5
+  max_overflow: 10
+  pool_timeout: 30
+  pool_recycle: 1800
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+  date_format: "%Y-%m-%d %H:%M:%S"
