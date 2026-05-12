@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Weather Stream Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e1a;--surface:#111827;--surface2:#1a2234;--surface3:#212d42;
+  --border:#1e2d45;--text:#f0f4ff;--muted:#6b7fa3;--accent:#3b82f6;
+  --green:#10b981;--amber:#f59e0b;--red:#ef4444;--cyan:#06b6d4;--purple:#8b5cf6;
+}
+body{font-family:'Space Grotesk',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+button{font-family:'Space Grotesk',sans-serif;cursor:pointer}
+
+/* HEADER */
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:200}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-icon{width:36px;height:36px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.logo h1{font-size:17px;font-weight:600}
+.logo p{font-size:11px;color:var(--muted);margin-top:2px}
+.header-right{display:flex;align-items:center;gap:12px}
+.live-badge{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--green)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.8)}}
+
+/* TOOLBAR */
+.toolbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0.75rem 2rem;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.search-wrap{position:relative;flex:1;min-width:180px;max-width:280px}
+.search-wrap input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 12px 7px 34px;color:var(--text);font-size:13px;outline:none;font-family:inherit}
+.search-wrap input:focus{border-color:var(--accent)}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--muted)}
+.sort-wrap{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.sort-wrap select{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-size:12px;font-family:inherit;outline:none;cursor:pointer}
+.unit-toggle{display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.unit-btn{padding:6px 12px;font-size:12px;border:none;background:transparent;color:var(--muted);transition:all 0.2s}
+.unit-btn.active{background:var(--accent);color:#fff}
+.view-toggle{display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.view-btn{padding:6px 14px;font-size:12px;border:none;background:transparent;color:var(--muted);transition:all 0.2s}
+.view-btn.active{background:var(--surface3);color:var(--text)}
+.alert-count{background:var(--red);color:#fff;font-size:11px;border-radius:99px;padding:2px 8px;font-weight:600}
+
+/* CONTAINER */
+.container{padding:1.5rem 2rem;max-width:1400px;margin:0 auto}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem 1.25rem}
+.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px}
+.stat-value{font-size:26px;font-weight:600}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:3px}
+
+/* ALERTS */
+.alerts-bar{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:0.75rem 1rem;margin-bottom:1.25rem;display:none}
+.alerts-title{font-size:12px;color:var(--red);font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em}
+.alerts-list{display:flex;flex-wrap:wrap;gap:8px}
+.alert-pill{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);border-radius:99px;padding:3px 10px;font-size:12px;color:#fca5a5}
+
+/* GRID VIEW */
+.cities-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.city-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.25rem;transition:all 0.2s;cursor:pointer;position:relative}
+.city-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.city-card.highlighted{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.city-card.alert-card{border-color:rgba(239,68,68,0.5)}
+.city-card.hidden{display:none}
+.city-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.85rem}
+.city-name{font-size:17px;font-weight:600}
+.city-country{font-size:11px;color:var(--muted);margin-top:3px}
+.city-flag{font-size:26px}
+.city-temp{font-size:44px;font-weight:700;line-height:1}
+.city-feels{font-size:12px;color:var(--muted);margin:4px 0 4px}
+.city-desc{font-size:13px;color:var(--muted);text-transform:capitalize;margin-bottom:1rem}
+.bar-bg{height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-bottom:1rem}
+.bar-fill{height:100%;border-radius:2px;transition:width 0.6s ease}
+.city-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.metric{background:var(--surface2);border-radius:8px;padding:7px 9px}
+.metric-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em}
+.metric-value{font-size:13px;font-weight:600;margin-top:2px}
+.city-footer{display:flex;justify-content:space-between;align-items:center;margin-top:0.85rem;padding-top:0.75rem;border-top:1px solid var(--border)}
+.kafka-tag{font-size:10px;color:var(--muted);background:var(--surface2);border-radius:4px;padding:2px 7px;font-family:monospace}
+.recorded-time{font-size:11px;color:var(--muted)}
+.alert-icon{position:absolute;top:12px;right:12px;font-size:16px}
+
+/* DETAIL PANEL */
+.detail-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.5rem;margin-bottom:1.5rem;display:none}
+.detail-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem}
+.detail-city{font-size:22px;font-weight:600}
+.detail-close{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--muted);font-size:13px}
+.detail-close:hover{color:var(--text)}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
+.chart-wrap{background:var(--surface2);border-radius:12px;padding:1rem}
+.chart-title{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.75rem}
+.detail-metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;align-content:start}
+.detail-metric{background:var(--surface2);border-radius:10px;padding:0.85rem 1rem}
+.detail-metric-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em}
+.detail-metric-value{font-size:20px;font-weight:600;margin-top:4px}
+
+/* COMPARE VIEW */
+.compare-view{display:none}
+.compare-selector{display:flex;gap:12px;margin-bottom:1.25rem;flex-wrap:wrap}
+.compare-select{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 14px;color:var(--text);font-size:13px;font-family:inherit;outline:none;flex:1;min-width:160px}
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
+.compare-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.5rem}
+.compare-city-name{font-size:20px;font-weight:600;margin-bottom:1rem}
+.compare-temp{font-size:48px;font-weight:700;margin-bottom:0.5rem}
+.compare-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
+.compare-row:last-child{border-bottom:none}
+.compare-label{color:var(--muted)}
+.compare-val{font-weight:500}
+.better{color:var(--green)}
+.worse{color:var(--red)}
+
+/* MAP VIEW */
+.map-view{display:none}
+.map-container{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.5rem}
+.map-title{font-size:13px;color:var(--muted);margin-bottom:1rem}
+.world-map{position:relative;width:100%;padding-bottom:50%;background:var(--surface2);border-radius:12px;overflow:hidden}
+.map-svg{position:absolute;top:0;left:0;width:100%;height:100%}
+.city-bubble{cursor:pointer;transition:all 0.2s}
+.city-bubble:hover circle{r:18}
+.city-label{font-size:9px;fill:#fff;text-anchor:middle;pointer-events:none;font-family:'Space Grotesk',sans-serif}
+.city-temp-label{font-size:8px;fill:rgba(255,255,255,0.8);text-anchor:middle;pointer-events:none;font-family:'Space Grotesk',sans-serif}
+.map-legend{display:flex;gap:16px;margin-top:1rem;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.legend-dot{width:10px;height:10px;border-radius:50%}
+
+/* REFRESH */
+.refresh-footer{text-align:center;padding:1rem;font-size:12px;color:var(--muted);border-top:1px solid var(--border);margin-top:1.5rem}
+.progress-wrap{height:2px;background:var(--surface2);border-radius:1px;width:200px;margin:8px auto 0}
+.progress-bar{height:100%;background:var(--accent);border-radius:1px;width:0%;transition:width 1s linear}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    <div>
+      <h1>Weather Stream Dashboard</h1>
+      <p>Real-time Kafka pipeline · 8 cities · 5 continents</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="live-badge"><div class="dot"></div><span id="status-text">Connecting...</span></div>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="search-input" placeholder="Search tracked cities..." oninput="applyFilters()"/>
+  </div>
+  <div class="search-wrap" style="max-width:240px">
+    <span class="search-icon">🌍</span>
+    <input type="text" id="live-search-input" placeholder="Search any city..." onkeydown="if(event.key==='Enter')searchLiveCity()"/>
+  </div>
+  <button onclick="searchLiveCity()" style="background:var(--accent);border:none;color:#fff;padding:7px 14px;border-radius:8px;font-size:13px;font-family:inherit">Search</button>
+  <div class="sort-wrap">
+    <span>Sort by</span>
+    <select id="sort-select" onchange="applyFilters()">
+      <option value="name">City name</option>
+      <option value="temp_desc">Temp ↓</option>
+      <option value="temp_asc">Temp ↑</option>
+      <option value="humidity">Humidity</option>
+      <option value="wind">Wind speed</option>
+    </select>
+  </div>
+  <div class="unit-toggle">
+    <button class="unit-btn active" id="unit-c" onclick="setUnit('C')">°C</button>
+    <button class="unit-btn" id="unit-f" onclick="setUnit('F')">°F</button>
+  </div>
+  <div class="view-toggle">
+    <button class="view-btn active" onclick="setView('grid',this)">Grid</button>
+    <button class="view-btn" onclick="setView('map',this)">Map</button>
+    <button class="view-btn" onclick="setView('compare',this)">Compare</button>
+  </div>
+  <div id="alert-badge" style="display:none">
+    <span class="alert-count" id="alert-count">0</span> ⚠️ alerts
+  </div>
+</div>
+
+<div class="container">
+  <div class="stats-row">
+    <div class="stat"><div class="stat-label">Total records</div><div class="stat-value" id="stat-total">—</div><div class="stat-sub">in PostgreSQL</div></div>
+    <div class="stat"><div class="stat-label">Max Kafka offset</div><div class="stat-value" id="stat-offset">—</div><div class="stat-sub">messages streamed</div></div>
+    <div class="stat"><div class="stat-label">Cities tracked</div><div class="stat-value" id="stat-cities">—</div><div class="stat-sub">across 5 continents</div></div>
+    <div class="stat"><div class="stat-label">DLQ messages</div><div class="stat-value" id="stat-dlq">—</div><div class="stat-sub">failed messages</div></div>
+  </div>
+
+  <div class="alerts-bar" id="alerts-bar">
+    <div class="alerts-title">⚠️ Weather Alerts</div>
+    <div class="alerts-list" id="alerts-list"></div>
+  </div>
+
+  <div class="detail-panel" id="detail-panel">
+    <div class="detail-header">
+      <div>
+        <div class="detail-city" id="detail-city-name">—</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px" id="detail-city-desc">—</div>
+      </div>
+      <button class="detail-close" onclick="closeDetail()">✕ Close</button>
+    </div>
+    <div class="detail-grid">
+      <div class="chart-wrap">
+        <div class="chart-title">Temperature history (last 20 readings)</div>
+        <canvas id="history-chart" height="180"></canvas>
+      </div>
+      <div class="detail-metrics" id="detail-metrics"></div>
+    </div>
+  </div>
+
+  <div id="grid-view">
+    <div class="cities-grid" id="cities-grid"></div>
+  </div>
+
+  <div class="map-view" id="map-view">
+    <div class="map-container">
+      <div class="map-title">Click a city bubble to view details</div>
+      <div class="world-map">
+        <svg class="map-svg" viewBox="0 0 800 400" id="map-svg">
+          <rect width="800" height="400" fill="#1a2234" rx="8"/>
+          <text x="400" y="200" fill="#2a3a54" font-size="120" text-anchor="middle" dominant-baseline="middle" font-family="serif">🌍</text>
+        </svg>
+      </div>
+      <div class="map-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#60a5fa"></div>Below 0°C</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#34d399"></div>0–10°C</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div>10–20°C</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f97316"></div>20–28°C</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Above 28°C</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="compare-view" id="compare-view">
+    <div class="compare-selector">
+      <select class="compare-select" id="compare-a" onchange="renderCompare()">
+        <option value="">Select city A...</option>
+      </select>
+      <select class="compare-select" id="compare-b" onchange="renderCompare()">
+        <option value="">Select city B...</option>
+      </select>
+    </div>
+    <div class="compare-grid" id="compare-grid"></div>
+  </div>
+
+  <div class="refresh-footer">
+    <span id="last-update">Fetching data...</span>
+    <div class="progress-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:5000';
+const REFRESH = 30;
+const FLAGS = {FR:'🇫🇷',GB:'🇬🇧',US:'🇺🇸',JP:'🇯🇵',CM:'🇨🇲',DE:'🇩🇪',NG:'🇳🇬',AU:'🇦🇺'};
+const CITY_COORDS = {
+  Paris:[370,130],London:[340,110],Berlin:[390,105],
+  'New York':[200,140],Tokyo:[680,145],Douala:[385,230],
+  Lagos:[370,225],Sydney:[700,310]
+};
+
+let allCities = [];
+let unit = 'C';
+let currentView = 'grid';
+let historyChart = null;
+let countdown = REFRESH;
+
+function toF(c){ return +(c * 9/5 + 32).toFixed(1); }
+function displayTemp(c){ return unit === 'C' ? c.toFixed(1)+'°C' : toF(c)+'°F'; }
+function displayTempShort(c){ return unit === 'C' ? c.toFixed(1)+'°' : toF(c)+'°'; }
+
+function tempColor(t){
+  if(t<0) return '#60a5fa';
+  if(t<10) return '#34d399';
+  if(t<20) return '#fbbf24';
+  if(t<28) return '#f97316';
+  return '#ef4444';
+}
+
+function tempBarWidth(t){
+  return Math.min(100,Math.max(0,((t+20)/60)*100)).toFixed(0)+'%';
+}
+
+function weatherIcon(desc){
+  if(!desc) return '☁️';
+  const d=desc.toLowerCase();
+  if(d.includes('thunder')) return '⛈️';
+  if(d.includes('rain')||d.includes('drizzle')) return '🌧️';
+  if(d.includes('snow')) return '❄️';
+  if(d.includes('clear')) return '☀️';
+  if(d.includes('few')||d.includes('scattered')) return '⛅';
+  return '🌥️';
+}
+
+function getAlerts(city){
+  const alerts = [];
+  if(city.temperature >= 35) alerts.push('Extreme heat');
+  if(city.temperature <= -10) alerts.push('Extreme cold');
+  if(city.wind_speed >= 15) alerts.push('High winds');
+  if(city.humidity >= 90) alerts.push('Very high humidity');
+  if(city.description && city.description.toLowerCase().includes('thunder')) alerts.push('Thunderstorm');
+  return alerts;
+}
+
+function formatTime(str){
+  try{ return new Date(str).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); }
+  catch(e){ return str; }
+}
+
+function setUnit(u){
+  unit = u;
+  document.getElementById('unit-c').className = 'unit-btn' + (u==='C'?' active':'');
+  document.getElementById('unit-f').className = 'unit-btn' + (u==='F'?' active':'');
+  renderGrid(allCities);
+  renderMap(allCities);
+  renderCompare();
+}
+
+function setView(v, btn){
+  currentView = v;
+  document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('grid-view').style.display = v==='grid'?'block':'none';
+  document.getElementById('map-view').style.display = v==='map'?'block':'none';
+  document.getElementById('compare-view').style.display = v==='compare'?'block':'none';
+  if(v==='map') renderMap(allCities);
+  if(v==='compare') renderCompare();
+}
+
+function applyFilters(){
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const sort = document.getElementById('sort-select').value;
+  let filtered = [...allCities];
+  if(q) filtered = filtered.filter(c=>c.city.toLowerCase().includes(q));
+  if(sort==='temp_desc') filtered.sort((a,b)=>b.temperature-a.temperature);
+  else if(sort==='temp_asc') filtered.sort((a,b)=>a.temperature-b.temperature);
+  else if(sort==='humidity') filtered.sort((a,b)=>b.humidity-a.humidity);
+  else if(sort==='wind') filtered.sort((a,b)=>b.wind_speed-a.wind_speed);
+  else filtered.sort((a,b)=>a.city.localeCompare(b.city));
+  renderGrid(filtered);
+}
+
+function renderAlerts(cities){
+  const alertsBar = document.getElementById('alerts-bar');
+  const alertsList = document.getElementById('alerts-list');
+  const alertBadge = document.getElementById('alert-badge');
+  const alertCount = document.getElementById('alert-count');
+  const allAlerts = [];
+  cities.forEach(city=>{
+    const a = getAlerts(city);
+    a.forEach(alert=> allAlerts.push(city.city+': '+alert));
+  });
+  if(allAlerts.length > 0){
+    alertsBar.style.display = 'block';
+    alertBadge.style.display = 'flex';
+    alertCount.textContent = allAlerts.length;
+    alertsList.innerHTML = allAlerts.map(a=>`<span class="alert-pill">⚠️ ${a}</span>`).join('');
+  } else {
+    alertsBar.style.display = 'none';
+    alertBadge.style.display = 'none';
+  }
+}
+
+function renderGrid(cities){
+  const grid = document.getElementById('cities-grid');
+  grid.innerHTML = '';
+  cities.forEach(city=>{
+    const color = tempColor(city.temperature);
+    const barW = tempBarWidth(city.temperature);
+    const flag = FLAGS[city.country]||'🌍';
+    const icon = weatherIcon(city.description);
+    const time = formatTime(city.recorded_at);
+    const alerts = getAlerts(city);
+    const card = document.createElement('div');
+    card.className = 'city-card' + (alerts.length?' alert-card':'');
+    card.onclick = ()=> openDetail(city);
+    card.innerHTML = `
+      ${alerts.length?'<div class="alert-icon">⚠️</div>':''}
+      <div class="city-top">
+        <div>
+          <div class="city-name">${city.city}</div>
+          <div class="city-country">${city.country}</div>
+        </div>
+        <div class="city-flag">${flag}</div>
+      </div>
+      <div class="city-temp" style="color:${color}">${displayTempShort(city.temperature)}</div>
+      <div class="city-feels">Feels like ${displayTemp(city.feels_like)}</div>
+      <div class="city-desc">${icon} ${city.description}</div>
+      <div class="bar-bg"><div class="bar-fill" style="width:${barW};background:${color}"></div></div>
+      <div class="city-metrics">
+        <div class="metric"><div class="metric-label">Humidity</div><div class="metric-value">${city.humidity}%</div></div>
+        <div class="metric"><div class="metric-label">Wind</div><div class="metric-value">${city.wind_speed.toFixed(1)} m/s</div></div>
+        <div class="metric"><div class="metric-label">Pressure</div><div class="metric-value">${city.pressure} hPa</div></div>
+      </div>
+      <div class="city-footer">
+        <span class="kafka-tag">offset: ${city.kafka_offset}</span>
+        <span class="recorded-time">recorded ${time}</span>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+function renderMap(cities){
+  const svg = document.getElementById('map-svg');
+  const existing = svg.querySelectorAll('.city-bubble');
+  existing.forEach(e=>e.remove());
+  cities.forEach(city=>{
+    const coords = CITY_COORDS[city.city];
+    if(!coords) return;
+    const [x,y] = coords;
+    const color = tempColor(city.temperature);
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.className.baseVal = 'city-bubble';
+    g.setAttribute('transform',`translate(${x},${y})`);
+    g.onclick = ()=> openDetail(city);
+    g.innerHTML = `
+      <circle r="14" fill="${color}" opacity="0.85"/>
+      <text class="city-label" y="-20" style="font-size:9px;fill:#fff;text-anchor:middle;font-family:Space Grotesk">${city.city}</text>
+      <text class="city-temp-label" y="4" style="font-size:9px;fill:#fff;text-anchor:middle;font-family:Space Grotesk">${displayTempShort(city.temperature)}</text>`;
+    svg.appendChild(g);
+  });
+}
+
+function populateCompareSelects(cities){
+  const selA = document.getElementById('compare-a');
+  const selB = document.getElementById('compare-b');
+  const valA = selA.value, valB = selB.value;
+  selA.innerHTML = '<option value="">Select city A...</option>';
+  selB.innerHTML = '<option value="">Select city B...</option>';
+  cities.forEach(c=>{
+    selA.innerHTML += `<option value="${c.city}" ${c.city===valA?'selected':''}>${FLAGS[c.country]||''} ${c.city}</option>`;
+    selB.innerHTML += `<option value="${c.city}" ${c.city===valB?'selected':''}>${FLAGS[c.country]||''} ${c.city}</option>`;
+  });
+}
+
+function renderCompare(){
+  const valA = document.getElementById('compare-a').value;
+  const valB = document.getElementById('compare-b').value;
+  const grid = document.getElementById('compare-grid');
+  if(!valA || !valB){ grid.innerHTML = '<div style="color:var(--muted);font-size:14px;padding:2rem">Select two cities to compare.</div>'; return; }
+  const cityA = allCities.find(c=>c.city===valA);
+  const cityB = allCities.find(c=>c.city===valB);
+  if(!cityA||!cityB) return;
+
+  function compareCard(city, other){
+    const color = tempColor(city.temperature);
+    const rows = [
+      ['Temperature', displayTemp(city.temperature), displayTemp(other.temperature), city.temperature > other.temperature ? 'worse':'better'],
+      ['Feels like', displayTemp(city.feels_like), displayTemp(other.feels_like), ''],
+      ['Humidity', city.humidity+'%', other.humidity+'%', city.humidity < other.humidity?'better':'worse'],
+      ['Wind speed', city.wind_speed.toFixed(1)+' m/s', other.wind_speed.toFixed(1)+' m/s', city.wind_speed < other.wind_speed?'better':'worse'],
+      ['Pressure', city.pressure+' hPa', other.pressure+' hPa', ''],
+      ['Visibility', (city.visibility/1000).toFixed(1)+' km', (other.visibility/1000).toFixed(1)+' km', city.visibility > other.visibility?'better':'worse'],
+      ['Kafka offset', city.kafka_offset, other.kafka_offset, ''],
+    ];
+    return `<div class="compare-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.85rem">
+        <div class="compare-city-name">${FLAGS[city.country]||''} ${city.city}</div>
+        <div style="font-size:11px;color:var(--muted)">${city.country}</div>
+      </div>
+      <div class="compare-temp" style="color:${color}">${displayTempShort(city.temperature)}</div>
+      <div style="font-size:13px;color:var(--muted);text-transform:capitalize;margin-bottom:1rem">${weatherIcon(city.description)} ${city.description}</div>
+      ${rows.map(([label,val,otherVal,cls])=>`
+        <div class="compare-row">
+          <span class="compare-label">${label}</span>
+          <span class="compare-val ${cls}">${val}</span>
+        </div>`).join('')}
+    </div>`;
+  }
+
+  grid.innerHTML = compareCard(cityA,cityB) + compareCard(cityB,cityA);
+}
+
+async function openDetail(city){
+  document.getElementById('detail-panel').style.display = 'block';
+  document.getElementById('detail-city-name').textContent = FLAGS[city.country]||'' + ' ' + city.city;
+  document.getElementById('detail-city-desc').textContent = city.description + ' · ' + displayTemp(city.temperature);
+
+  document.getElementById('detail-metrics').innerHTML = `
+    <div class="detail-metric"><div class="detail-metric-label">Temperature</div><div class="detail-metric-value" style="color:${tempColor(city.temperature)}">${displayTemp(city.temperature)}</div></div>
+    <div class="detail-metric"><div class="detail-metric-label">Feels like</div><div class="detail-metric-value">${displayTemp(city.feels_like)}</div></div>
+    <div class="detail-metric"><div class="detail-metric-label">Humidity</div><div class="detail-metric-value">${city.humidity}%</div></div>
+    <div class="detail-metric"><div class="detail-metric-label">Wind speed</div><div class="detail-metric-value">${city.wind_speed.toFixed(1)} m/s</div></div>
+    <div class="detail-metric"><div class="detail-metric-label">Pressure</div><div class="detail-metric-value">${city.pressure} hPa</div></div>
+    <div class="detail-metric"><div class="detail-metric-label">Visibility</div><div class="detail-metric-value">${(city.visibility/1000).toFixed(1)} km</div></div>
+    <div class="detail-metric"><div class="detail-metric-label">Kafka offset</div><div class="detail-metric-value" style="font-family:monospace;font-size:16px">${city.kafka_offset}</div></div>
+    <div class="detail-metric"><div class="detail-metric-label">Country</div><div class="detail-metric-value">${FLAGS[city.country]||''} ${city.country}</div></div>
+  `;
+
+  try {
+    const r = await fetch(`${API}/api/weather/history/${encodeURIComponent(city.city)}`);
+    const d = await r.json();
+    if(d.status==='ok' && d.data.length > 0){
+      const labels = d.data.map(r=>formatTime(r.recorded_at)).reverse();
+      const temps = d.data.map(r=> unit==='C'?r.temperature:toF(r.temperature)).reverse();
+      const humids = d.data.map(r=>r.humidity).reverse();
+      if(historyChart) historyChart.destroy();
+      const ctx = document.getElementById('history-chart').getContext('2d');
+      historyChart = new Chart(ctx,{
+        type:'line',
+        data:{
+          labels,
+          datasets:[
+            {label:'Temperature ('+unit+')',data:temps,borderColor:tempColor(city.temperature),backgroundColor:'transparent',tension:0.4,pointRadius:3},
+            {label:'Humidity (%)',data:humids,borderColor:'#8b5cf6',backgroundColor:'transparent',tension:0.4,pointRadius:3}
+          ]
+        },
+        options:{
+          responsive:true,
+          plugins:{legend:{labels:{color:'#6b7fa3',font:{size:11}}}},
+          scales:{
+            x:{ticks:{color:'#6b7fa3',font:{size:10}},grid:{color:'#1e2d45'}},
+            y:{ticks:{color:'#6b7fa3',font:{size:10}},grid:{color:'#1e2d45'}}
+          }
+        }
+      });
+    }
+  } catch(e){}
+
+  document.getElementById('detail-panel').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function closeDetail(){
+  document.getElementById('detail-panel').style.display = 'none';
+  if(historyChart){ historyChart.destroy(); historyChart=null; }
+}
+
+async function loadStats(){
+  try{
+    const r = await fetch(API+'/api/weather/stats');
+    const d = await r.json();
+    if(d.status==='ok'){
+      document.getElementById('stat-total').textContent = d.total_records.toLocaleString();
+      document.getElementById('stat-offset').textContent = d.max_kafka_offset.toLocaleString();
+      document.getElementById('stat-dlq').textContent = d.dlq_count;
+    }
+  }catch(e){}
+}
+
+async function loadCities(){
+  try{
+    const r = await fetch(API+'/api/weather/latest');
+    const d = await r.json();
+    if(d.status!=='ok') throw new Error();
+    allCities = d.data;
+    document.getElementById('stat-cities').textContent = allCities.length;
+    document.getElementById('status-text').textContent = 'Live · '+new Date().toLocaleTimeString();
+    renderAlerts(allCities);
+    applyFilters();
+    populateCompareSelects(allCities);
+    if(currentView==='map') renderMap(allCities);
+    await loadStats();
+    document.getElementById('last-update').textContent = 'Last updated: '+new Date().toLocaleTimeString()+' · Next refresh in '+countdown+'s';
+  }catch(e){
+    document.getElementById('cities-grid').innerHTML = '<div style="color:var(--muted);padding:3rem;text-align:center">Cannot reach API at '+API+'<br><small>Make sure Docker is running</small></div>';
+    document.getElementById('status-text').textContent = 'Disconnected';
+  }
+}
+
+function startProgress(){
+  const bar = document.getElementById('progress-bar');
+  countdown = REFRESH;
+  bar.style.transition = 'none';
+  bar.style.width = '0%';
+  setTimeout(()=>{ bar.style.transition = 'width '+REFRESH+'s linear'; bar.style.width='100%'; },100);
+}
+
+loadCities();
+startProgress();
+
+setInterval(()=>{
+  countdown--;
+  const el = document.getElementById('last-update');
+  if(el && countdown > 0) el.textContent = 'Last updated: '+new Date().toLocaleTimeString()+' · Next refresh in '+countdown+'s';
+  if(countdown <= 0){ loadCities(); startProgress(); }
+},1000);
+let liveCard = null;
+
+async function searchLiveCity(){
+  const input = document.getElementById('live-search-input');
+  const city = input.value.trim();
+  if(!city) return;
+
+  const btn = document.querySelector('button[onclick="searchLiveCity()"]');
+  btn.textContent = 'Searching...';
+  btn.disabled = true;
+
+  try {
+    const r = await fetch(`${API}/api/weather/search/${encodeURIComponent(city)}`);
+    const d = await r.json();
+
+    if(d.status !== 'ok'){
+      alert(`City not found: ${city}`);
+      return;
+    }
+
+    const city_data = d.data;
+    city_data.kafka_offset = 'live';
+
+    // Remove previous live card if exists
+    if(liveCard) liveCard.remove();
+
+    const color = tempColor(city_data.temperature);
+    const barW = tempBarWidth(city_data.temperature);
+    const flag = FLAGS[city_data.country] || '🌍';
+    const icon = weatherIcon(city_data.description);
+
+    liveCard = document.createElement('div');
+    liveCard.className = 'city-card';
+    liveCard.style.border = '1px solid var(--cyan)';
+    liveCard.style.position = 'relative';
+    liveCard.onclick = () => openDetail(city_data);
+    liveCard.innerHTML = `
+      <div style="position:absolute;top:10px;right:10px;background:var(--cyan);color:#000;font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px">LIVE SEARCH</div>
+      <div class="city-top">
+        <div>
+          <div class="city-name">${city_data.city}</div>
+          <div class="city-country">${city_data.country}</div>
+        </div>
+        <div class="city-flag">${flag}</div>
+      </div>
+      <div class="city-temp" style="color:${color}">${displayTempShort(city_data.temperature)}</div>
+      <div class="city-feels">Feels like ${displayTemp(city_data.feels_like)}</div>
+      <div class="city-desc">${icon} ${city_data.description}</div>
+      <div class="bar-bg"><div class="bar-fill" style="width:${barW};background:${color}"></div></div>
+      <div class="city-metrics">
+        <div class="metric"><div class="metric-label">Humidity</div><div class="metric-value">${city_data.humidity}%</div></div>
+        <div class="metric"><div class="metric-label">Wind</div><div class="metric-value">${city_data.wind_speed.toFixed(1)} m/s</div></div>
+        <div class="metric"><div class="metric-label">Pressure</div><div class="metric-value">${city_data.pressure} hPa</div></div>
+      </div>
+      <div class="city-footer">
+        <span class="kafka-tag" style="color:var(--cyan)">⚡ live lookup</span>
+        <span class="recorded-time">not in pipeline</span>
+      </div>`;
+
+    const grid = document.getElementById('cities-grid');
+    grid.insertBefore(liveCard, grid.firstChild);
+    input.value = '';
+
+  } catch(e){
+    alert('Error searching for city. Make sure Docker is running.');
+  } finally {
+    btn.textContent = 'Search';
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>

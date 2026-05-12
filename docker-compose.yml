@@ -129,5 +129,41 @@ services:
       - ./logs:/app/logs
     restart: on-failure
 
+    # ─────────────────────────────────────────────
+  # REST API — serves weather data to dashboard
+  # ─────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: weather_api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+    environment:
+      POSTGRES_HOST: postgres_streaming
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: weather_streaming
+      POSTGRES_USER: streaming_user
+      POSTGRES_PASSWORD: streaming_pass
+      OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY}
+    restart: on-failure
+
+    # ─────────────────────────────────────────────
+  # Dashboard — web UI served by nginx
+  # ─────────────────────────────────────────────
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    container_name: weather_dashboard
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+    restart: on-failure
+
 volumes:
   postgres_streaming_data:
