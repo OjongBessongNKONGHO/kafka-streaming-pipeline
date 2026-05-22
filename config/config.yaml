@@ -25,6 +25,14 @@ api:
       country: "NG"
     - name: "Sydney"
       country: "AU"
+    - name: "Nairobi"
+      country: "KE"
+    - name: "São Paulo"
+      country: "BR"
+    - name: "Dubai"
+      country: "AE"
+    - name: "Mumbai"
+      country: "IN"
 
 kafka:
   topic: "weather_stream"

@@ -66,7 +66,7 @@ Built as part of my Data Engineering portfolio to demonstrate real-time streamin
 ## ✨ Key Features
 
 - **Real-time streaming** — Kafka producer polls every 30 seconds, consumer processes continuously
-- **8 cities across 5 continents** — Paris, London, Berlin, New York, Tokyo, Douala, Lagos, Sydney
+- **12 cities across 6 continents** — Paris, London, Berlin, New York, Tokyo, Douala, Lagos, Sydney, Nairobi, São Paulo, Dubai, Mumbai
 - **Pydantic v2 validation** — temperature range, humidity bounds, wind speed, required fields all enforced before data enters Kafka
 - **Manual offset commits** — offsets committed only after successful DB insertion — no message lost on crash
 - **Dead Letter Queue** — failed messages stored with full error detail for investigation and reprocessing
