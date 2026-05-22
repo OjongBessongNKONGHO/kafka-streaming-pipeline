@@ -37,7 +37,7 @@ Built as part of my Data Engineering portfolio to demonstrate real-time streamin
 
 ### Data Flow
 
-1. **Producer** fetches weather data every 30 seconds for 8 cities across 5 continents
+1. **Producer** fetches weather data every 30 seconds for 12 cities across 6 continents
 2. Each record is **validated by Pydantic v2** — invalid data never enters Kafka
 3. Valid records are **streamed to Kafka** using city name as the message key — ensuring all messages for the same city go to the same partition, preserving order
 4. **Consumer** reads messages with manual offset commits — offsets are only committed after successful PostgreSQL insertion, guaranteeing no data loss on crash
@@ -117,6 +117,7 @@ kafka-streaming-pipeline/
 ├── docker-compose.yml            # Zookeeper + Kafka + Kafka UI + PostgreSQL + Producer + Consumer
 ├── requirements.txt              # Pinned Python dependencies
 ├── .env.example                  # Environment variable template — safe to commit
+├── Makefile                      # Shortcuts — make up, down, restart, logs, status, test, clean
 ├── .gitignore                    # Excludes .env, logs, cache, data
 └── README.md
 ```
