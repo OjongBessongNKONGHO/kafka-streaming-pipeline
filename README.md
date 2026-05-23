@@ -8,6 +8,8 @@
 ![Tests](https://img.shields.io/badge/Tests-pytest-0A9EDC?style=flat&logo=pytest)
 ![Status](https://img.shields.io/badge/Status-Active-success?style=flat)
 
+![CI](https://github.com/OjongBessongNKONGHO/kafka-streaming-pipeline/actions/workflows/ci.yml/badge.svg)
+
 A production-grade real-time data streaming pipeline built with Apache Kafka. A Python producer continuously fetches live weather data from the OpenWeatherMap API, validates every record with Pydantic v2, and streams it into a Kafka topic. A decoupled Python consumer reads from the topic, processes each message, and persists clean records into PostgreSQL, with full offset tracking, dead letter queue handling, structured logging, health checks and unit tests throughout.
 
 Built as part of my Data Engineering portfolio to demonstrate real-time streaming architecture, data quality enforcement, and production engineering practices.
