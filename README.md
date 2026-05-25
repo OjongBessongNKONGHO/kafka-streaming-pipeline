@@ -18,34 +18,55 @@ Built as part of my Data Engineering portfolio to demonstrate real-time streamin
 
 ## 📐 Architecture
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                        Docker Compose Stack                       │
-│                                                                   │
-│  ┌─────────────┐    ┌──────────────┐    ┌──────────────────────┐ │
-│  │  Producer   │    │    Kafka     │    │      Consumer        │ │
-│  │             │───▶│    Broker    │───▶│                      │ │
-│  │ Fetch API   │    │  (topic:     │    │ Validate → Persist   │ │
-│  │ Validate    │    │  weather_    │    │ Manual offset commit  │ │
-│  │ Produce msg │    │  stream)     │    │ DLQ on failure       │ │
-│  └─────────────┘    └──────────────┘    └──────────────────────┘ │
-│         │                  │                       │             │
-│  OpenWeatherMap       Kafka UI                 PostgreSQL        │
-│      API            (localhost:8080)          (weather_events)   │
-│                                                                   │
-│  Zookeeper (coordination) + Health Check Module                  │
-└──────────────────────────────────────────────────────────────────┘
+
+
+```mermaid
+flowchart LR
+    subgraph External
+        API[🌐 OpenWeatherMap API\n12 cities every 30s]
+    end
+
+    subgraph Docker Compose Stack
+        subgraph Coordination
+            ZK[🔧 Zookeeper\nCluster management]
+        end
+
+        subgraph Streaming
+            PROD[📤 Producer\nFetch → Validate → Produce]
+            KAFKA[📨 Kafka Broker\ntopic: weather_stream]
+            CONS[📥 Consumer\nManual offset commits]
+        end
+
+        subgraph Monitoring
+            KUI[🖥️ Kafka UI\nlocalhost:8080]
+            HC[❤️ Health Check\nKafka + DB + API]
+        end
+
+        subgraph Storage
+            DLQ[(⚠️ DLQ Table\nFailed messages)]
+            DB[(🗄️ PostgreSQL\nweather_events)]
+        end
+    end
+
+    API -->|JSON response| PROD
+    PROD -->|Pydantic v2 validation| KAFKA
+    ZK -->|coordinates| KAFKA
+    KAFKA -->|consumer group| CONS
+    CONS -->|success: INSERT| DB
+    CONS -->|failure: save| DLQ
+    KUI -->|monitors| KAFKA
+    HC -->|checks| KAFKA
+    HC -->|checks| DB
 ```
 
 ### Data Flow
 
-1. **Producer** fetches weather data every 30 seconds for 12 cities across 6 continents
-2. Each record is **validated by Pydantic v2** — invalid data never enters Kafka
-3. Valid records are **streamed to Kafka** using city name as the message key — ensuring all messages for the same city go to the same partition, preserving order
-4. **Consumer** reads messages with manual offset commits — offsets are only committed after successful PostgreSQL insertion, guaranteeing no data loss on crash
+1. **Producer** fetches live weather data every 30 seconds for 12 cities across 6 continents
+2. Every record is **validated by Pydantic v2** — invalid data never enters Kafka
+3. Valid records are **streamed to Kafka** using city name as the message key — preserving order per city
+4. **Consumer** reads messages with manual offset commits — offsets only committed after successful PostgreSQL insertion
 5. Failed messages are routed to the **Dead Letter Queue** table for investigation and reprocessing
-6. Every record in PostgreSQL includes the **Kafka offset and partition** for full traceability
-
+6. **Kafka UI** at localhost:8080 provides visual monitoring of topics, partitions and messages
 ---
 
 ## 🛠️ Tech Stack
