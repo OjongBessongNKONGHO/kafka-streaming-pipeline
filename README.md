@@ -108,7 +108,7 @@ flowchart LR
 | Metric | Value |
 |---|---|
 | Cities tracked | 12 across 6 continents |
-| Continents covered | Europe, Americas, Asia, Africa, Oceania, Middle East |
+| Continents covered | Europe, Americas, Asia, Africa, Oceania |
 | Producer poll interval | Every 30 seconds |
 | Messages streamed | 2,207+ (verified in live run) |
 | DLQ failures | 0 — perfect reliability |
