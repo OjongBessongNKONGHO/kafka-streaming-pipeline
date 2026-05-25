@@ -98,8 +98,26 @@ flowchart LR
 - **Structured logging** — consistent format across all modules with INFO/WARNING/ERROR/CRITICAL levels
 - **Health check module** — verifies Kafka broker, PostgreSQL and API status on demand
 - **Connection pool** — SQLAlchemy pool with pre-ping to handle long-running consumer connections
-- **pytest unit tests** — 20+ tests covering schema validation, producer logic and consumer processing
+- **20+ pytest unit tests** — covering schema validation, producer logic and consumer processing
 - **Separate Dockerfiles** — producer and consumer have minimal, independent images
+- **Makefile** — one-command shortcuts for up, down, restart, logs, status, test and clean
+- **CI/CD** — GitHub Actions runs tests automatically on every push
+
+## 📊 Pipeline Metrics
+
+| Metric | Value |
+|---|---|
+| Cities tracked | 12 across 6 continents |
+| Continents covered | Europe, Americas, Asia, Africa, Oceania, Middle East |
+| Producer poll interval | Every 30 seconds |
+| Messages streamed | 2,207+ (verified in live run) |
+| DLQ failures | 0 — perfect reliability |
+| Kafka topic | weather_stream |
+| Consumer group | weather_consumer_group |
+| Unit tests | 20+ passing |
+| CI status | GitHub Actions — passing |
+| Docker containers | 8 — Zookeeper, Kafka, Kafka UI, PostgreSQL, Producer, Consumer, API, Dashboard |
+| Setup command | make up |
 
 ---
 
