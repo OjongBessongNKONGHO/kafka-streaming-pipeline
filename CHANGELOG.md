@@ -20,3 +20,8 @@ All notable changes to this project are documented here.
 - Makefile with shortcuts
 - Mermaid architecture diagram in README
 - 2207+ messages streamed, 0 DLQ failures in live run
+
+## [1.0.1] - 2026-06-01
+
+### Improved
+- Added project roadmap: next steps include Delta Lake integration and Spark Structured Streaming consumer
