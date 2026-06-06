@@ -16,6 +16,8 @@ python-dotenv==1.0.0
 
 # HTTP requests
 requests==2.31.0
+# Async HTTP requests — used for concurrent city fetching
+aiohttp==3.14.0
 
 # Testing
 pytest==7.4.4
