@@ -89,6 +89,7 @@ flowchart LR
 ## ✨ Key Features
 
 - **Real-time streaming** — Kafka producer polls every 30 seconds, consumer processes continuously
+- **Concurrent city fetching** — asyncio and aiohttp fetch all 12 cities simultaneously instead of sequentially — reduces fetch time by ~12x
 - **12 cities across 6 continents** — Paris, London, Berlin, New York, Tokyo, Douala, Lagos, Sydney, Nairobi, São Paulo, Dubai, Mumbai
 - **Pydantic v2 validation** — temperature range, humidity bounds, wind speed, required fields all enforced before data enters Kafka
 - **Manual offset commits** — offsets committed only after successful DB insertion — no message lost on crash
