@@ -93,13 +93,13 @@ flowchart LR
 - **12 cities across 6 continents** — Paris, London, Berlin, New York, Tokyo, Douala, Lagos, Sydney, Nairobi, São Paulo, Dubai, Mumbai
 - **Pydantic v2 validation** — temperature range, humidity bounds, wind speed, required fields all enforced before data enters Kafka
 - **Manual offset commits** — offsets committed only after successful DB insertion — no message lost on crash
-- **Dead Letter Queue** — failed messages stored with full error detail for investigation and reprocessing
+- **Dead Letter Queue with reprocessing** — failed messages stored with full error detail; a standalone script reprocesses every DLQ row through the same validation logic the live consumer uses, preserving the original Kafka offset for traceability
 - **Kafka offset tracking** — every PostgreSQL record linked to its exact Kafka message
 - **Graceful shutdown** — SIGINT/SIGTERM handled cleanly, in-flight messages completed before exit
 - **Structured logging** — consistent format across all modules with INFO/WARNING/ERROR/CRITICAL levels
 - **Health check module** — verifies Kafka broker, PostgreSQL and API status on demand
 - **Connection pool** — SQLAlchemy pool with pre-ping to handle long-running consumer connections
-- **20+ pytest unit tests** — covering schema validation, producer logic and consumer processing
+- **44 pytest unit tests** — covering schema validation, producer logic, consumer processing, async concurrent fetching and DLQ reprocessing
 - **Separate Dockerfiles** — producer and consumer have minimal, independent images
 - **Makefile** — one-command shortcuts for up, down, restart, logs, status, test and clean
 - **CI/CD** — GitHub Actions runs tests automatically on every push
@@ -115,7 +115,7 @@ flowchart LR
 | DLQ failures | 0 — perfect reliability |
 | Kafka topic | weather_stream |
 | Consumer group | weather_consumer_group |
-| Unit tests | 20+ passing |
+| Unit tests | 44 passing |
 | CI status | GitHub Actions — passing |
 | Docker containers | 8 — Zookeeper, Kafka, Kafka UI, PostgreSQL, Producer, Consumer, API, Dashboard |
 | Setup command | make up |
@@ -147,12 +147,15 @@ kafka-streaming-pipeline/
 │   └── health_check.py          # Checks Kafka, PostgreSQL and API health with latency metrics
 │
 ├── scripts/
-│   └── init_db.sql              # Creates DB, user, weather_events table, DLQ table, indexes
+│   ├── init_db.sql              # Creates DB, user, weather_events table, DLQ table, indexes
+│   └── reprocess_dlq.py         # Reprocesses failed messages from the DLQ back into weather_events
 │
 ├── tests/
 │   ├── test_schema.py           # 16 tests — valid data, invalid data, edge cases
 │   ├── test_producer.py         # Tests fetch, validate, produce with mocked dependencies
-│   └── test_consumer.py         # Tests process_message and save_to_dlq with mocked DB
+│   ├── test_consumer.py         # Tests process_message and save_to_dlq with mocked DB
+│   ├── test_async_fetch.py      # Tests concurrent asyncio fetching across all 12 cities
+│   └── test_reprocess_dlq.py    # 9 tests — DLQ reprocessing with mocked engine and process_message
 │
 ├── Dockerfile.producer           # Minimal Python 3.11-slim image for producer
 ├── Dockerfile.consumer           # Minimal Python 3.11-slim image for consumer
@@ -244,20 +247,30 @@ docker-compose up producer consumer kafka-ui --build -d
 | Producer logs | `docker logs weather_producer -f` | Live producer output |
 | Consumer logs | `docker logs weather_consumer -f` | Live consumer output |
 
-**6. Query the data**
+**6. Reprocess failed messages**
+
+If any messages land in the dead letter queue — transient DB errors, temporary network issues — reprocess them without losing the original Kafka offset:
+
+```bash
+docker exec -it weather_producer python -m scripts.reprocess_dlq
+```
+
+Each DLQ row is re-validated and re-inserted using the same logic the live consumer uses. Messages that succeed are removed from the DLQ and written to `weather_events` with their original `kafka_offset` preserved. Messages that fail again remain in the DLQ for further investigation. A summary is logged at the end — succeeded, still failing, total.
+
+**7. Query the data**
 
 ```bash
 docker exec -it postgres_streaming psql -U streaming_user -d weather_streaming \
   -c "SELECT city, temperature, weather_description, kafka_offset, recorded_at FROM weather_events ORDER BY recorded_at DESC LIMIT 20;"
 ```
 
-**7. Run health check**
+**8. Run health check**
 
 ```bash
 docker exec -it weather_producer python -m monitoring.health_check
 ```
 
-**8. Run tests**
+**9. Run tests**
 
 ```bash
 pip install -r requirements.txt
@@ -282,6 +295,9 @@ In production, some messages will always fail — malformed data, transient DB e
 
 **Why city as the Kafka message key?**
 Kafka uses the message key to determine which partition to send to. Using city as the key ensures all messages for Paris always go to the same partition, preserving message order per city. This matters when the consumer needs to process events in chronological order per location.
+
+**Why a standalone reprocessing script instead of automatic retries inside the consumer?**
+In-consumer retries handle only failures that resolve within milliseconds, like a single dropped connection. They cannot help with the failures this DLQ actually catches — a database outage lasting minutes, or a schema mismatch that needs a code fix before reprocessing can succeed. A separate script run on demand keeps the consumer simple and fast for the common case, and gives explicit control over when reprocessing happens, rather than having a struggling consumer silently retrying in a loop. It reuses `process_message()` directly, so the validation and insertion logic is never duplicated between the live path and the recovery path.
 
 **Why separate Dockerfiles for producer and consumer?**
 Each service only contains the code it needs. The producer image has no consumer code and vice versa. Smaller images, cleaner separation, reduced attack surface. This mirrors how microservices are deployed in production.
