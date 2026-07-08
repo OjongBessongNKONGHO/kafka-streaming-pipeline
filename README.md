@@ -99,7 +99,8 @@ flowchart LR
 - **Structured logging** — consistent format across all modules with INFO/WARNING/ERROR/CRITICAL levels
 - **Health check module** — verifies Kafka broker, PostgreSQL and API status on demand
 - **Connection pool** — SQLAlchemy pool with pre-ping to handle long-running consumer connections
-- **44 pytest unit tests** — covering schema validation, producer logic, consumer processing, async concurrent fetching and DLQ reprocessing
+- **53 pytest unit tests** — covering schema validation, producer logic, consumer processing, async
+concurrent fetching, DLQ reprocessing and DLQ monitoring
 - **Separate Dockerfiles** — producer and consumer have minimal, independent images
 - **Makefile** — one-command shortcuts for up, down, restart, logs, status, test and clean
 - **CI/CD** — GitHub Actions runs tests automatically on every push
@@ -115,7 +116,7 @@ flowchart LR
 | DLQ failures | 0 — perfect reliability |
 | Kafka topic | weather_stream |
 | Consumer group | weather_consumer_group |
-| Unit tests | 44 passing |
+| Unit tests | 53 passing |
 | CI status | GitHub Actions — passing |
 | Docker containers | 8 — Zookeeper, Kafka, Kafka UI, PostgreSQL, Producer, Consumer, API, Dashboard |
 | Setup command | make up |
@@ -155,7 +156,8 @@ kafka-streaming-pipeline/
 │   ├── test_producer.py         # Tests fetch, validate, produce with mocked dependencies
 │   ├── test_consumer.py         # Tests process_message and save_to_dlq with mocked DB
 │   ├── test_async_fetch.py      # Tests concurrent asyncio fetching across all 12 cities
-│   └── test_reprocess_dlq.py    # 9 tests — DLQ reprocessing with mocked engine and process_message
+│   ├── test_reprocess_dlq.py    # 9 tests — DLQ reprocessing with mocked engine and process_message
+│   └── test_monitor_dlq.py      # 9 tests — DLQ summary aggregation, age calculation, exit codes
 │
 ├── Dockerfile.producer           # Minimal Python 3.11-slim image for producer
 ├── Dockerfile.consumer           # Minimal Python 3.11-slim image for consumer
