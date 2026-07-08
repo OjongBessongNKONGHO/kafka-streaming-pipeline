@@ -93,7 +93,7 @@ flowchart LR
 - **12 cities across 6 continents** — Paris, London, Berlin, New York, Tokyo, Douala, Lagos, Sydney, Nairobi, São Paulo, Dubai, Mumbai
 - **Pydantic v2 validation** — temperature range, humidity bounds, wind speed, required fields all enforced before data enters Kafka
 - **Manual offset commits** — offsets committed only after successful DB insertion — no message lost on crash
-- **Dead Letter Queue with reprocessing** — failed messages stored with full error detail; a standalone script reprocesses every DLQ row through the same validation logic the live consumer uses, preserving the original Kafka offset for traceability
+- **Dead Letter Queue with reprocessing and monitoring** — failed messages stored with full error detail; a reprocessing script replays DLQ rows through the same validation logic preserving the original Kafka offset; a separate read-only monitoring script reports message counts, error breakdowns and oldest unresolved message age — safe to run on a schedule without modifying data
 - **Kafka offset tracking** — every PostgreSQL record linked to its exact Kafka message
 - **Graceful shutdown** — SIGINT/SIGTERM handled cleanly, in-flight messages completed before exit
 - **Structured logging** — consistent format across all modules with INFO/WARNING/ERROR/CRITICAL levels
@@ -149,7 +149,8 @@ kafka-streaming-pipeline/
 │
 ├── scripts/
 │   ├── init_db.sql              # Creates DB, user, weather_events table, DLQ table, indexes
-│   └── reprocess_dlq.py         # Reprocesses failed messages from the DLQ back into weather_events
+│   ├── reprocess_dlq.py         # Reprocesses failed messages from the DLQ back into weather_events
+|   └── monitor_dlq.py           # Read-only DLQ health report — message count, error breakdown, oldest unresolved age
 │
 ├── tests/
 │   ├── test_schema.py           # 16 tests — valid data, invalid data, edge cases
