@@ -1,0 +1,18 @@
+{
+  "type": "record",
+  "name": "WeatherData",
+  "namespace": "com.weatherapi.streaming",
+  "doc": "Weather observation for a single city at a point in time. Matches the WeatherData Pydantic model in src/validation/schema.py.",
+  "fields": [
+    {"name": "city", "type": "string", "doc": "City name, title-cased, 1-100 characters"},
+    {"name": "country", "type": "string", "doc": "ISO country code, 2-10 characters"},
+    {"name": "temperature", "type": "double", "doc": "Temperature in Celsius, -90 to 60"},
+    {"name": "feels_like", "type": "double", "doc": "Feels-like temperature in Celsius, -90 to 60"},
+    {"name": "humidity", "type": "int", "doc": "Relative humidity percentage, 0-100"},
+    {"name": "pressure", "type": "int", "doc": "Atmospheric pressure in hPa, 800-1100"},
+    {"name": "weather_description", "type": "string", "doc": "Human-readable weather description, lowercased"},
+    {"name": "wind_speed", "type": "double", "doc": "Wind speed in m/s, non-negative"},
+    {"name": "visibility", "type": ["null", "int"], "default": null, "doc": "Visibility in metres, optional"},
+    {"name": "recorded_at", "type": "string", "doc": "ISO 8601 datetime string"}
+  ]
+}

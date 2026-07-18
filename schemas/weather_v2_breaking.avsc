@@ -1,0 +1,18 @@
+{
+  "type": "record",
+  "name": "WeatherData",
+  "namespace": "com.weatherapi.streaming",
+  "doc": "BREAKING — changes humidity type from int to string. Not backward compatible: old consumers expecting int will fail to deserialize.",
+  "fields": [
+    {"name": "city", "type": "string"},
+    {"name": "country", "type": "string"},
+    {"name": "temperature", "type": "double"},
+    {"name": "feels_like", "type": "double"},
+    {"name": "humidity", "type": "string"},
+    {"name": "pressure", "type": "int"},
+    {"name": "weather_description", "type": "string"},
+    {"name": "wind_speed", "type": "double"},
+    {"name": "visibility", "type": ["null", "int"], "default": null},
+    {"name": "recorded_at", "type": "string"}
+  ]
+}
