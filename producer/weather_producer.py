@@ -7,6 +7,7 @@ from datetime import datetime
 from kafka import KafkaProducer
 from kafka.errors import KafkaError
 from dotenv import load_dotenv
+from src.avro.serializer import AvroSerializer, AvroSerializationError
 
 from src.utils.logger import get_logger
 from src.validation.schema import WeatherData
