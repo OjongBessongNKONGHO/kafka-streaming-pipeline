@@ -328,7 +328,7 @@ If the Schema Registry is temporarily unreachable, a crashing consumer would los
 
 **Ojong Bessong NKONGHO**
 Data Engineering Student — DSTI School of Engineering, Paris
-Seeking Data Engineering internship (July 2026) & apprenticeship (September 2026)
+Seeking Data Engineering internship immediately & apprenticeship (September 2026)
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-nkongho--ojong-0077B5?style=flat&logo=linkedin)](https://linkedin.com/in/nkongho-ojong)
 [![GitHub](https://img.shields.io/badge/GitHub-OjongBessongNKONGHO-181717?style=flat&logo=github)](https://github.com/OjongBessongNKONGHO)
