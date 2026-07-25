@@ -285,26 +285,43 @@ pytest tests/ -v
 ## 🧠 Key Engineering Decisions
 
 **Why Kafka instead of direct DB writes?**
-Kafka decouples the producer from the consumer. The producer streams at its own speed. The consumer processes at its own speed. If the database goes down, Kafka holds messages safely until the consumer recovers — no data loss. This is impossible with direct writes.
+Kafka decouples the producer from the consumer. The producer streams at its own speed. The consumer processes at its own speed. If the database goes down, Kafka holds messages safely until the consumer recovers and no data is lost. This is impossible with direct writes.
 
 **Why manual offset commits?**
-With auto-commit, Kafka marks a message as processed the moment it is received — before the DB write. If the consumer crashes between receiving and writing, the message is lost forever. Manual commits ensure we only mark a message as processed after it has been successfully written to PostgreSQL.
+With auto-commit, Kafka marks a message as processed the moment it is received, before the DB write. If the consumer crashes between receiving and writing, the message is lost forever. Manual commits ensure we only mark a message as processed after it has been successfully written to PostgreSQL.
 
 **Why Pydantic v2 for validation?**
-Pydantic validates at the entry point — before data enters Kafka. Invalid data is caught and logged immediately with a precise error message. Without this, bad data would flow all the way to the database before failing, making debugging much harder. This is the fail-fast principle.
+Pydantic validates at the entry point, before data enters Kafka. Invalid data is caught and logged immediately with a precise error message. Without this, bad data would flow all the way to the database before failing, making debugging much harder. This is the fail-fast principle.
 
 **Why a Dead Letter Queue?**
-In production, some messages will always fail — malformed data, transient DB errors, schema mismatches. Without a DLQ, those messages are lost forever. With a DLQ, every failure is recorded with the raw message and full error detail, allowing investigation and reprocessing without data loss.
+In production, some messages will always fail: malformed data, transient DB errors, schema mismatches. Without a DLQ, those messages are lost forever. With a DLQ, every failure is recorded with the raw message and full error detail, allowing investigation and reprocessing without data loss.
 
 **Why city as the Kafka message key?**
 Kafka uses the message key to determine which partition to send to. Using city as the key ensures all messages for Paris always go to the same partition, preserving message order per city. This matters when the consumer needs to process events in chronological order per location.
 
 **Why a standalone reprocessing script instead of automatic retries inside the consumer?**
-In-consumer retries handle only failures that resolve within milliseconds, like a single dropped connection. They cannot help with the failures this DLQ actually catches — a database outage lasting minutes, or a schema mismatch that needs a code fix before reprocessing can succeed. A separate script run on demand keeps the consumer simple and fast for the common case, and gives explicit control over when reprocessing happens, rather than having a struggling consumer silently retrying in a loop. It reuses `process_message()` directly, so the validation and insertion logic is never duplicated between the live path and the recovery path.
+In-consumer retries handle only failures that resolve within milliseconds, like a single dropped connection. They cannot help with the failures this DLQ actually catches: a database outage lasting minutes, or a schema mismatch that needs a code fix before reprocessing can succeed. A separate script run on demand keeps the consumer simple and fast for the common case, and gives explicit control over when reprocessing happens rather than having a struggling consumer silently retrying in a loop. It reuses `process_message()` directly, so the validation and insertion logic is never duplicated between the live path and the recovery path.
 
 **Why separate Dockerfiles for producer and consumer?**
 Each service only contains the code it needs. The producer image has no consumer code and vice versa. Smaller images, cleaner separation, reduced attack surface. This mirrors how microservices are deployed in production.
 
+**Why Avro instead of JSON for message serialization?**
+JSON has no schema enforcement. A producer can silently change a field name or type and the consumer will fail at runtime with no warning. Avro binds every message to a versioned schema. The Confluent Schema Registry enforces compatibility rules before a new schema version is accepted: a breaking type change is rejected at registration time, not discovered when consumers start failing in production. Each message carries a 5-byte header containing the schema ID used to encode it, so consumers always know exactly which schema to use for deserialization regardless of when the message was produced.
+
+**Why the Confluent wire format instead of plain Avro bytes?**
+Plain Avro bytes embed the full schema in every message or assume the consumer already knows the schema out of band. The Confluent wire format uses a 5-byte header, a magic byte and a 4-byte schema ID, so consumers fetch the schema once from the registry and cache it. A pipeline processing thousands of messages per second fetches each schema version exactly once per process lifetime rather than once per message. Any Confluent-compatible consumer (Spark Structured Streaming, ksqlDB, Kafka Streams) can deserialize messages without any coordination with the producer beyond the registry.
+
+**Why BACKWARD compatibility instead of FULL or FORWARD?**
+BACKWARD compatibility means a new schema can read data written with the old schema. This allows consumers to be upgraded before producers, which is the safest migration order in a streaming pipeline where you cannot restart everything simultaneously. Adding an optional field with a default is BACKWARD compatible; removing a required field is not. The registry enforces this automatically. A type change from int to string was rejected by the registry during development, which is exactly the class of bug this catches before it reaches production consumers.
+
+**Why a data contract layer on top of Pydantic validation?**
+Pydantic enforces types and structure. The data contract enforces domain meaning. A humidity value of 150 passes Pydantic's integer type check but fails the contract's 0 to 100% rule. A recorded_at timestamp ten minutes in the future passes all structural checks but signals a clock skew bug. The contract catches these at the pipeline entry point, before they reach Kafka, the database, or any downstream consumer. It also carries a version number so consumers can detect breaking changes to the validation rules independently of the Avro schema version.
+
+**Why schema ID caching in both the serializer and deserializer?**
+The producer registers its schema once on startup and caches the returned ID. Every subsequent message uses the cached ID with no registry roundtrip. The consumer caches writer schemas by ID after first fetch. In a pipeline running at 21 cities every 30 seconds, this means two registry calls per process lifetime, one on the producer side and one on the consumer side, regardless of how long the pipeline runs or how many messages it processes. Without caching, every message would add an HTTP roundtrip to the registry, multiplying latency linearly with throughput.
+
+**Why AvroDeserializationError routes to the DLQ instead of crashing the consumer?**
+If the Schema Registry is temporarily unreachable, a crashing consumer would lose all in-flight messages and require manual restart. By catching AvroDeserializationError and routing affected messages to the DLQ, the consumer continues processing messages that do not require a registry lookup (cached schema IDs) while preserving failed messages for reprocessing once the registry recovers. This keeps the consumer running during transient infrastructure failures rather than amplifying them.
 ---
 
 ## 👤 Author
