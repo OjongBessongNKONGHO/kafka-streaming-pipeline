@@ -353,6 +353,7 @@ The producer registers its schema once on startup and caches the returned ID. Ev
 
 **Why AvroDeserializationError routes to the DLQ instead of crashing the consumer?**
 If the Schema Registry is temporarily unreachable, a crashing consumer would lose all in-flight messages and require manual restart. By catching AvroDeserializationError and routing affected messages to the DLQ, the consumer continues processing messages that do not require a registry lookup (cached schema IDs) while preserving failed messages for reprocessing once the registry recovers. This keeps the consumer running during transient infrastructure failures rather than amplifying them.
+<<<<<<< HEAD
 
 ---
 
@@ -369,13 +370,20 @@ This is one of six data engineering projects built throughout 2026.
 | [Spark Streaming Pipeline](https://github.com/OjongBessongNKONGHO/spark-streaming-pipeline) | Spark, Kafka, Delta Lake, dbt, Airflow, Terraform, AWS |
 | [Weather API](https://github.com/OjongBessongNKONGHO/weather-api) | FastAPI, PostgreSQL, SQLAlchemy 2.0 async, Prometheus, Grafana, Docker |
 
+=======
+>>>>>>> 8544c1817a614780280116d13ab6ffe95b6d693b
 ---
 
 ## 👤 Author
 
 **Ojong Bessong NKONGHO**
+<<<<<<< HEAD
 BSc Computer Science, DSTI School of Engineering, Paris
 MSc Data Engineering and AI — September 2026
+=======
+Data Engineering Student — DSTI School of Engineering, Paris
+Seeking Data Engineering internship immediately & apprenticeship (September 2026)
+>>>>>>> 8544c1817a614780280116d13ab6ffe95b6d693b
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-nkongho--ojong-0077B5?style=flat&logo=linkedin)](https://linkedin.com/in/nkongho-ojong)
 [![GitHub](https://img.shields.io/badge/GitHub-OjongBessongNKONGHO-181717?style=flat&logo=github)](https://github.com/OjongBessongNKONGHO)
