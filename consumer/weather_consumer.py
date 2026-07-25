@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 
 from src.utils.logger import get_logger
 from consumer.processor import get_engine, process_message, save_to_dlq
+from src.avro.deserializer import AvroDeserializer, AvroDeserializationError
 
 load_dotenv()
 logger = get_logger(__name__)
@@ -34,26 +35,47 @@ def load_config() -> dict:
         return yaml.safe_load(f)
 
 
-def create_consumer(bootstrap_servers: str, config: dict) -> KafkaConsumer:
+def create_consumer(bootstrap_servers: str, config: dict, schema_registry_url: str | None = None) -> tuple:
     """
     Create and return a KafkaConsumer with manual offset commits.
-    
-    Manual offset commits mean we only mark a message as processed
-    AFTER it has been successfully written to PostgreSQL.
-    If the consumer crashes mid-processing, the message will be
-    redelivered on restart — no data loss.
+
+    When schema_registry_url is provided, configures Avro deserialization
+    using the Confluent wire format. The deserializer fetches the writer
+    schema by ID from the registry for each unique schema version seen,
+    then uses the local reader schema to decode the payload. Schema
+    evolution between producer and consumer is handled automatically
+    by fastavro as long as schemas are BACKWARD compatible.
+
+    When no registry URL is set, falls back to plain JSON deserialization
+    so existing deployments without a Schema Registry are not broken.
+
+    Returns a tuple of (consumer, deserializer_or_None).
     """
-    return KafkaConsumer(
-        config['kafka']['topic'],
+    deserializer = None
+
+    if schema_registry_url:
+        deserializer = AvroDeserializer(
+            registry_url=schema_registry_url,
+            schema_path="schemas/weather_v1.avsc",
+        )
+        value_deserializer = lambda v: deserializer.deserialize(v)
+        logger.info("Avro deserialization enabled — registry: %s", schema_registry_url)
+    else:
+        value_deserializer = lambda v: json.loads(v.decode("utf-8"))
+        logger.info("Schema Registry not configured — falling back to JSON deserialization")
+
+    consumer = KafkaConsumer(
+        config["kafka"]["topic"],
         bootstrap_servers=bootstrap_servers,
-        group_id=config['kafka']['consumer_group'],
-        auto_offset_reset=config['kafka']['auto_offset_reset'],
-        enable_auto_commit=False,  # Manual commits only
-        value_deserializer=lambda v: json.loads(v.decode('utf-8')),
-        session_timeout_ms=config['kafka']['session_timeout_ms'],
-        heartbeat_interval_ms=config['kafka']['heartbeat_interval_ms'],
-        max_poll_records=config['kafka']['max_poll_records']
+        group_id=config["kafka"]["consumer_group"],
+        auto_offset_reset=config["kafka"]["auto_offset_reset"],
+        enable_auto_commit=False,
+        value_deserializer=value_deserializer,
+        session_timeout_ms=config["kafka"]["session_timeout_ms"],
+        heartbeat_interval_ms=config["kafka"]["heartbeat_interval_ms"],
+        max_poll_records=config["kafka"]["max_poll_records"],
     )
+    return consumer, deserializer
 
 
 def run_consumer():
@@ -79,7 +101,8 @@ def run_consumer():
     logger.info(f"Starting consumer | topic={topic} | group={config['kafka']['consumer_group']}")
 
     engine = get_engine()
-    consumer = create_consumer(bootstrap_servers, config)
+    schema_registry_url = os.getenv("SCHEMA_REGISTRY_URL")
+    consumer, avro_deserializer = create_consumer(bootstrap_servers, config, schema_registry_url) 
 
     messages_processed = 0
     messages_failed = 0
